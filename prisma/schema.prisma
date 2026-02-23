@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONFIGURACIÓN DEL NEGOCIO
+// ─────────────────────────────────────────────────────────────
+
+model Configuracion {
+  id                  String   @id @default("default")
+  nombreNegocio       String   @default("Mi Negocio")
+  emailPropietario    String   @default("marcocarnicero1@gmail.com")
+  telegramBotToken    String   @default("8518192400:AAFqTyWwzwHVN6kiFOn_9Kughixi_fCc0Q0")
+  telegramChatId      String   @default("5743796914")
+  stockMinimoGlobal   Int      @default(5)
+  porcentajeGanancia  Int      @default(30)
+  moneda              String   @default("$")
+  notificacionesEmail Boolean  @default(true)
+  notificacionesTelegram Boolean @default(true)
+  updatedAt           DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────
+// PRODUCTOS
+// ─────────────────────────────────────────────────────────────
+
+model Producto {
+  id                  String   @id @default(uuid())
+  codigo              String   @unique
+  nombre              String
+  descripcion         String?
+  categoria           String   @default("General")
+  stock               Int      @default(0)
+  stockMinimo         Int      @default(5)
+  precioCompra        Float    @default(0)
+  precioVenta         Float    @default(0)
+  gananciaPorcentaje  Int      @default(30)
+  gananciaMonto       Float    @default(0)
+  proveedor           String?
+  ubicacion           String?
+  codigoBarras        String?
+  imagen              String?
+  activo              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relaciones
+  movimientos         Movimiento[]
+  detallesVenta       DetalleVenta[]
+  detallesCompra      DetalleCompra[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// MOVIMIENTOS DE INVENTARIO
+// ─────────────────────────────────────────────────────────────
+
+model Movimiento {
+  id              String   @id @default(uuid())
+  tipo            String   // ENTRADA, SALIDA, AJUSTE
+  productoId      String
+  producto        Producto @relation(fields: [productoId], references: [id])
+  cantidad        Int
+  stockAnterior   Int
+  stockNuevo      Int
+  precioUnitario  Float
+  total           Float
+  motivo          String?
+  observaciones   String?
+  usuario         String?
+  createdAt       DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────
+// VENTAS
+// ─────────────────────────────────────────────────────────────
+
+model Venta {
+  id              String   @id @default(uuid())
+  numeroVenta     String   @unique
+  cliente         String?
+  clienteEmail    String?
+  clienteTelefono String?
+  subtotal        Float
+  impuestos       Float    @default(0)
+  descuento       Float    @default(0)
+  total           Float
+  gananciaTotal   Float
+  metodoPago      String   @default("Efectivo")
+  estado          String   @default("Completada")
+  observaciones   String?
+  usuario         String?
+  createdAt       DateTime @default(now())
+  
+  // Relaciones
+  detalles        DetalleVenta[]
+}
+
+model DetalleVenta {
+  id              String   @id @default(uuid())
+  ventaId         String
+  venta           Venta   @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  productoId      String
+  producto        Producto @relation(fields: [productoId], references: [id])
+  cantidad        Int
+  precioUnitario  Float
+  precioCompra    Float
+  ganancia        Float
+  subtotal        Float
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPRAS
+// ─────────────────────────────────────────────────────────────
+
+model Compra {
+  id              String   @id @default(uuid())
+  numeroCompra    String   @unique
+  proveedor       String?
+  proveedorRuc    String?
+  proveedorEmail  String?
+  proveedorTelefono String?
+  subtotal        Float
+  impuestos       Float    @default(0)
+  total           Float
+  estado          String   @default("Recibida")
+  observaciones   String?
+  usuario         String?
+  createdAt       DateTime @default(now())
+  
+  // Relaciones
+  detalles        DetalleCompra[]
+}
+
+model DetalleCompra {
+  id              String   @id @default(uuid())
+  compraId        String
+  compra          Compra  @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  productoId      String
+  producto        Producto @relation(fields: [productoId], references: [id])
+  cantidad        Int
+  precioUnitario  Float
+  subtotal        Float
+}
+
+// ─────────────────────────────────────────────────────────────
+// CATEGORÍAS
+// ─────────────────────────────────────────────────────────────
+
+model Categoria {
+  id          String   @id @default(uuid())
+  nombre      String   @unique
+  descripcion String?
+  color       String   @default("#3B82F6")
+  activa      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROVEEDORES
+// ─────────────────────────────────────────────────────────────
+
+model Proveedor {
+  id          String   @id @default(uuid())
+  nombre      String
+  ruc         String?  @unique
+  email       String?
+  telefono    String?
+  direccion   String?
+  notas       String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────
+// ALERTAS
+// ─────────────────────────────────────────────────────────────
+
+model Alerta {
+  id          String   @id @default(uuid())
+  tipo        String   // STOCK_BAJO, SIN_STOCK, PERSONALIZADA
+  productoId  String?
+  mensaje     String
+  leida       Boolean  @default(false)
+  enviada     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────
+// HISTORIAL DE NOTIFICACIONES
+// ─────────────────────────────────────────────────────────────
+
+model Notificacion {
+  id          String   @id @default(uuid())
+  tipo        String   // EMAIL, TELEGRAM
+  destinatario String
+  asunto      String?
+  mensaje     String
+  exito       Boolean  @default(true)
+  error       String?
+  createdAt   DateTime @default(now())
+}
